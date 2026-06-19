@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AIIMS Neuro-ICU Decision Support System | Full UI + Corrected Flow</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0a0e15; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #e8edf5; overflow: hidden; height: 100vh; }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #141a24; }
+    ::-webkit-scrollbar-thumb { background: #2a3a4a; border-radius: 3px; }
+    .app { display: flex; flex-direction: column; height: 100%; }
+    .header { background: #0c1119; border-bottom: 1px solid #2a3a4a; padding: 8px 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; flex-shrink: 0; }
+    .title { font-size: 15px; font-weight: 600; color: #6c9ed9; }
+    .title small { font-size: 10px; font-weight: normal; color: #8a9bb0; margin-left: 8px; }
+    .controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .param-group { display: flex; gap: 4px; background: #0f151f; padding: 3px 10px; border-radius: 5px; align-items: center; border: 1px solid #2a3a4a; }
+    .param-group label { font-size: 10px; color: #8a9bb0; }
+    input, select { background: #141c28; border: 1px solid #2a3a4a; color: #e8edf5; border-radius: 4px; padding: 3px 8px; font-size: 10px; width: auto; }
+    button { background: #1e2a3a; border: none; color: #e8edf5; padding: 4px 14px; border-radius: 5px; cursor: pointer; font-size: 10px; font-weight: 500; transition: 0.1s ease; }
+    button.primary { background: #2c5f8a; }
+    button.success { background: #2a5a3a; }
+    button:hover { opacity: 0.85; }
+    .time-badge { background: #0f151f; border-radius: 5px; padding: 3px 12px; font-family: monospace; font-size: 11px; border: 1px solid #2a3a4a; }
+    .speed-indicator { background: #1e2a3a; padding: 3px 10px; border-radius: 5px; font-size: 10px; }
+    .main { display: grid; grid-template-columns: 360px 1fr 380px; flex: 1; overflow: hidden; gap: 1px; background: #1a1f2e; }
+    .panel { background: #0c1119; display: flex; flex-direction: column; overflow-y: auto; gap: 8px; padding: 10px; }
+    .panel-center { background: #0a0e15; }
+    .card { background: #111722; border: 1px solid #2a3a4a; border-radius: 8px; padding: 10px; }
+    .card-header { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: #6c9ed9; margin-bottom: 8px; border-left: 3px solid #6c9ed9; padding-left: 8px; }
+    .data-table { width: 100%; border-collapse: collapse; font-size: 10px; }
+    .data-table th { text-align: left; padding: 8px 6px; background: #0d121c; color: #8a9bb0; font-weight: 600; font-size: 9px; border-bottom: 1px solid #2a3a4a; }
+    .data-table td { padding: 7px 6px; border-bottom: 1px solid #1e2d3d; }
+    .scroll-area { max-height: 180px; overflow-y: auto; }
+    .scroll-lg { max-height: 260px; overflow-y: auto; }
+    .priority-badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 8px; font-weight: 700; }
+    .priority-p1 { background: #c94f4f; color: white; }
+    .priority-p2 { background: #e6a017; color: white; }
+    .priority-p3 { background: #2a8e5a; color: white; }
+    .health-critical { color: #f0a0a0; font-weight: 600; }
+    .bed-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(60px, 1fr)); gap: 4px; max-height: 160px; overflow-y: auto; }
+    .bed { background: #0f1620; border-radius: 4px; padding: 5px 2px; text-align: center; border: 1px solid #2a3a4a; font-size: 8px; cursor: pointer; transition: 0.05s linear; }
+    .bed.occupied { background: #1a2a3a; border-color: #6c9ed9; }
+    .bed.critical { background: #3a2a2a; border-color: #d97a7a; }
+    .bed.vap { background: #2a2a3a; border-color: #a87ba8; }
+    .bed.empty { background: #0d121c; border-color: #2a3a4a; opacity: 0.6; }
+    .metric-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #2a3a4a; font-size: 10px; }
+    .progress-bar { background: #1e2a3a; border-radius: 4px; height: 5px; overflow: hidden; margin: 5px 0; }
+    .progress-fill { background: #3a8a5a; height: 100%; width: 0%; }
+    .recommendation { background: #0d1820; border-radius: 5px; padding: 8px; margin: 5px 0; border-left: 3px solid #d9a13b; font-size: 9px; }
+    .recommendation.critical { border-left-color: #d97a7a; background: #1a1515; }
+    .event-log { background: #080c14; border-radius: 5px; padding: 6px; height: 110px; overflow-y: auto; font-size: 8px; font-family: monospace; }
+    .event { padding: 3px 0; border-bottom: 1px solid #1a2335; color: #a0b3cc; }
+    .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); display: none; justify-content: center; align-items: center; z-index: 1000; }
+    .modal-content { background: #111722; border: 1px solid #6c9ed9; border-radius: 10px; padding: 16px; width: 550px; max-width: 90%; max-height: 80%; overflow-y: auto; }
+    .modal-close { float: right; cursor: pointer; font-size: 18px; color: #d97a7a; }
+    .timeline-item { padding: 6px; border-left: 2px solid #6c9ed9; margin: 4px 0 4px 12px; font-size: 9px; }
+    .clickable { cursor: pointer; }
+    .clickable:hover { background: #1a2335; border-radius: 4px; }
+    .flex-row { display: flex; justify-content: space-between; align-items: center; }
+    canvas { width: 100%; height: 150px; background: #060a12; border-radius: 6px; display: block; }
+    .patient-row { display: grid; grid-template-columns: 45px 55px 40px 50px 35px 45px 55px; gap: 4px; padding: 6px 4px; border-bottom: 1px solid #1e2d3d; align-items: center; cursor: pointer; font-size: 9px; }
+    .patient-row:hover { background: #1a2335; border-radius: 4px; }
+    .patient-header { font-weight: 600; color: #8a9bb0; background: #0d121c; border-radius: 4px; position: sticky; top: 0; font-size: 8px; }
+    .status-dead { background: #5a2a2a; color: #e0a0a0; padding: 2px 6px; border-radius: 4px; display: inline-block; }
+    .status-discharged { background: #2a5a3a; color: #a0e0c0; padding: 2px 6px; border-radius: 4px; display: inline-block; }
+  </style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <div class="title">ICU DECISION SUPPORT SYSTEM </small></div>
+    <div class="controls">
+      <div class="param-group"><label>Admits/day</label><input type="number" id="arrivalRate" value="2.8" step="0.2" style="width:50px;"></div>
+      <div class="param-group"><label>Doctors</label><input type="number" id="docCount" value="8" step="1" style="width:50px;"></div>
+      <div class="param-group"><label>Nurses</label><input type="number" id="nurseCount" value="20" step="1" style="width:50px;"></div>
+      <div class="param-group"><label>Beds</label><input type="number" id="bedCount" value="18" step="1" style="width:50px;"></div>
+      <div class="param-group"><label>Vents</label><input type="number" id="ventCount" value="14" step="1" style="width:50px;"></div>
+      <div class="param-group"><label>ICP Monitors</label><input type="number" id="icpCount" value="12" step="1" style="width:50px;"></div>
+      <div class="param-group"><label>Triage</label><select id="triagePolicy" style="width:85px;"><option value="severity">Severity</option><option value="survival">Survival</option></select></div>
+      <button id="btnStart" class="primary">▶ Run</button>
+      <button id="btnPause">⏸ Pause</button>
+      <button id="btnReset">⟳ Reset</button>
+      <button id="btnExport" class="success">📎 Export CSV</button>
+      <div class="time-badge" id="simTime">Day 0</div>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="panel">
+      <div class="card"><div class="card-header">⏳ Pending Admissions</div><div class="scroll-area" id="triageQueue"></div></div>
+      <div class="card"><div class="card-header"> Resource Waiting</div><div class="scroll-area" id="resourceWait"></div></div>
+      <div class="card"><div class="card-header">📊 Disease Outcomes</div><div class="scroll-area" id="diseaseOutcomes"></div></div>
+      <div class="card"><div class="card-header">📈 Key Statistics</div><div id="statsPanel"></div></div>
+    </div>
+
+    <div class="panel panel-center">
+      <div class="card"><div class="card-header"> Patient Flow (VAP→DEATH + VAP→TREATMENT)</div><canvas id="flowCanvas"></canvas></div>
+      <div class="card"><div class="card-header">🛏️ Bed Occupancy <span id="occRate"></span></div><div class="bed-grid" id="bedGrid"></div></div>
+      <div class="card"><div class="card-header"> Patient Database</div><div class="scroll-lg" id="patientList"></div></div>
+    </div>
+
+    <div class="panel">
+      <div class="card"><div class="card-header"> Active Patients</div><div class="scroll-area" id="activePatients"></div></div>
+      <div class="card"><div class="card-header"> Resource Utilization</div><div id="resourcePanel"></div></div>
+      <div class="card"><div class="card-header"> Cost Breakdown</div><div id="costPanel"></div></div>
+      <div class="card"><div class="card-header"> Optimization</div><div id="optimizationPanel"></div></div>
+      <div class="card"><div class="card-header"> Recommendations</div><div id="recommendations"></div></div>
+      <div class="card"><div class="card-header"> Event Log</div><div class="event-log" id="eventLog"></div></div>
+    </div>
+  </div>
+</div>
+
+<div id="journeyModal" class="modal">
+  <div class="modal-content">
+    <span class="modal-close" onclick="closeModal()">&times;</span>
+    <h3 id="modalTitle" style="color:#6c9ed9; margin-bottom:10px;">Patient Journey</h3>
+    <div id="modalContent"></div>
+  </div>
+</div>
+
+<script>
+// ======================== FULL SIMULATION ENGINE ========================
+const COST_BED_DAY = 6000, COST_VENT_DAY = 2500, COST_ICP_DAY = 1500, VAP_TREATMENT_COST_DAY = 5000;
+const VAP_PROBABILITY = 0.20, DISCHARGE_HEALTH_THRESH = 68, MINIMUM_LOS_DAYS = 5, MINIMUM_LOS_SEVERE = 10;
+const UPDATE_INTERVAL_MS = 250, DOCTOR_RECOVERY_BONUS = 0.02, NURSE_RECOVERY_BONUS = 0.015;
+
+const MEDICATIONS = [{ name: "Mannitol", costPerDay: 1200 },{ name: "Hypertonic Saline", costPerDay: 1800 },{ name: "Levetiracetam", costPerDay: 900 },{ name: "Nimodipine", costPerDay: 3200 },{ name: "Propofol", costPerDay: 2800 },{ name: "Fentanyl", costPerDay: 1200 }];
+const LAB_TESTS = [{ name: "ABG", costPerTest: 450, frequencyHours: 6 },{ name: "Serum Osmolality", costPerTest: 350, frequencyHours: 8 },{ name: "Electrolytes", costPerTest: 300, frequencyHours: 6 },{ name: "CBC", costPerTest: 250, frequencyHours: 24 },{ name: "CT Brain", costPerTest: 3200, frequencyHours: 72 }];
+const DISEASES = [
+  { name: "Severe TBI", recRate: 2.2, ventProb: 0.70, icpProb: 0.75, baseMort: 0.18, minLOS: 14, maxLOS: 35 },
+  { name: "SAH", recRate: 2.3, ventProb: 0.68, icpProb: 0.80, baseMort: 0.15, minLOS: 12, maxLOS: 30 },
+  { name: "ICH", recRate: 2.1, ventProb: 0.65, icpProb: 0.75, baseMort: 0.20, minLOS: 10, maxLOS: 28 },
+  { name: "Brain Tumor Surgery", recRate: 3.8, ventProb: 0.35, icpProb: 0.40, baseMort: 0.05, minLOS: 5, maxLOS: 14 },
+  { name: "Ischemic Stroke", recRate: 3.2, ventProb: 0.38, icpProb: 0.30, baseMort: 0.10, minLOS: 7, maxLOS: 20 },
+  { name: "Status Epilepticus", recRate: 3.5, ventProb: 0.35, icpProb: 0.25, baseMort: 0.06, minLOS: 4, maxLOS: 14 },
+  { name: "Cervical SCI", recRate: 2.0, ventProb: 0.75, icpProb: 0.12, baseMort: 0.10, minLOS: 14, maxLOS: 35 },
+  { name: "Myasthenia Gravis", recRate: 3.6, ventProb: 0.55, icpProb: 0.06, baseMort: 0.04, minLOS: 5, maxLOS: 14 },
+  { name: "GBS", recRate: 2.1, ventProb: 0.65, icpProb: 0.05, baseMort: 0.06, minLOS: 14, maxLOS: 35 },
+  { name: "Meningitis", recRate: 3.0, ventProb: 0.45, icpProb: 0.45, baseMort: 0.12, minLOS: 7, maxLOS: 21 }
+];
+
+function randomRange(min, max) { return min + Math.random() * (max - min); }
+function isSevereBrainInjury(dx) { return dx.includes("TBI") || dx.includes("SAH") || dx.includes("ICH"); }
+function mortalityToHourlyHazard(totalRisk, refWindowHours) { return 1 - Math.pow(1 - Math.min(0.7, Math.max(0.01, totalRisk)), 1 / Math.max(48, refWindowHours)); }
+
+let state, simInterval, completedPatients = [];
+
+class Patient {
+  constructor(id, time, isInitial = false) {
+    this.id = id; this.admitTime = time;
+    const d = DISEASES[Math.floor(Math.random() * DISEASES.length)];
+    this.disease = d; this.diagnosis = d.name;
+    this.apache = Math.min(38, Math.max(10, Math.round(12 + Math.random() * 24)));
+    this.gcs = Math.min(15, Math.max(3, 15 - Math.floor((this.apache - 10) / 4)));
+    let baseH = 75 - (this.apache - 15) * 0.6;
+    this.health = Math.max(40, Math.min(85, baseH + (Math.random() * 12) - 6));
+    this.recoveryPerHour = d.recRate / 24;
+    this.ventilatorRequired = Math.random() < d.ventProb;
+    this.icpRequired = Math.random() < d.icpProb;
+    this.vap = false; this.vapTimer = this.ventilatorRequired ? randomRange(48, 96) : Infinity;
+    this.status = isInitial ? "active" : "waiting_bed";
+    this.bedId = null; this.doctorId = null; this.nurseId = null;
+    this.hasVentilator = false; this.hasICP = false;
+    this.costBed = 0; this.costVent = 0; this.costICP = 0; this.costMeds = 0; this.costLabs = 0; this.costVAP = 0; this.totalCost = 0;
+    this.medications = []; for (let med of MEDICATIONS) if (Math.random() < 0.5) this.medications.push({ name: med.name, dailyCost: med.costPerDay });
+    this.lastLabRun = {}; for (let lab of LAB_TESTS) this.lastLabRun[lab.name] = -lab.frequencyHours;
+    this.bedWaitHours = 0; this.resourceWaitHours = 0; this.dischargeTime = null;
+    this.targetLOS = randomRange(d.minLOS, d.maxLOS); this.lastCostDay = -1; this.stable = 0;
+    this._baseHourlyHazard = mortalityToHourlyHazard(d.baseMort, d.minLOS * 24);
+    this.journey = [{ time: (time / 24).toFixed(1), event: isInitial ? "Initial Admission" : "Arrival", detail: `${this.diagnosis} | APACHE:${this.apache} | GCS:${this.gcs} | Health:${this.health.toFixed(0)}%` }];
+  }
+  addCosts(day, hours) { if (day === this.lastCostDay) return; this.lastCostDay = day; this.costBed += COST_BED_DAY; this.totalCost += COST_BED_DAY; if (this.hasVentilator) { this.costVent += COST_VENT_DAY; this.totalCost += COST_VENT_DAY; } if (this.hasICP) { this.costICP += COST_ICP_DAY; this.totalCost += COST_ICP_DAY; } if (this.vap) { this.costVAP += VAP_TREATMENT_COST_DAY; this.totalCost += VAP_TREATMENT_COST_DAY; } for (let med of this.medications) { this.costMeds += med.dailyCost; this.totalCost += med.dailyCost; } for (let lab of LAB_TESTS) { if (hours - this.lastLabRun[lab.name] >= lab.frequencyHours) { this.lastLabRun[lab.name] = hours; this.costLabs += lab.costPerTest; this.totalCost += lab.costPerTest; } } if (this.status === "waiting_bed" || this.status === "waiting_resources") this.totalCost += 500; }
+  addJourney(day, event, detail) { this.journey.push({ time: day.toFixed(1), event, detail }); }
+  getLOS() { return this.dischargeTime ? (this.dischargeTime - this.admitTime) / 24 : (state ? (state.time - this.admitTime) / 24 : 0); }
+  calculateHourlyDeathProb() { let h = this._baseHourlyHazard; let mult = 1 + (this.apache - 18) * 0.025; if (!this.doctorId && this.health < 50) mult += 0.3; if (!this.nurseId && this.health < 50) mult += 0.2; if (this.ventilatorRequired && !this.hasVentilator && this.health < 40) mult += 0.4; if (this.vap) mult *= 1.5; if (this.bedWaitHours > 48) mult *= 1.4; else if (this.bedWaitHours > 24) mult *= 1.2; let healthMult = this.health < 5 ? 200 : this.health < 15 ? 40 : this.health < 25 ? 12 : this.health < 40 ? 4 : this.health < 55 ? 2 : this.health < 70 ? 1.2 : 1.0; return Math.min(0.9, h * mult * healthMult); }
+}
+
+function initState() {
+  let beds = +document.getElementById("bedCount").value, docs = +document.getElementById("docCount").value, nurses = +document.getElementById("nurseCount").value, vents = +document.getElementById("ventCount").value, icps = +document.getElementById("icpCount").value, admitsPD = +document.getElementById("arrivalRate").value;
+  let s = { time: 0, arrivalRatePerHour: admitsPD / 24, totalBeds: beds, availableBeds: beds, totalDoctors: docs, availableDoctors: docs, totalNurses: nurses, availableNurses: nurses, totalVents: vents, availableVents: vents, totalICP: icps, availableICP: icps, patients: [], nextArrival: 0.5, totalAdmissions: 0, totalDischarges: 0, totalDeaths: 0, noBedDeaths: 0, totalLOS: 0, totalCost: 0, vapCases: 0, triagePolicy: document.getElementById("triagePolicy").value, bedOccupancy: new Array(beds).fill(null), events: [], diseaseStats: {} };
+  let initCount = Math.min(Math.floor(beds * 0.7), beds);
+  for (let i = 0; i < initCount; i++) { let p = new Patient(`INIT-${(i+1).toString().padStart(3,'0')}`, 0, true); p.health = randomRange(55, 80); p.bedId = i; s.bedOccupancy[i] = p.id; s.patients.push(p); s.totalAdmissions++; if (s.availableDoctors > 0 && Math.random() < 0.8) { p.doctorId = `DOC-${i+1}`; s.availableDoctors--; } if (s.availableNurses > 0 && Math.random() < 0.8) { p.nurseId = `NUR-${i+1}`; s.availableNurses--; } if (p.ventilatorRequired && s.availableVents > 0 && Math.random() < 0.7) { p.hasVentilator = true; s.availableVents--; } if (p.icpRequired && s.availableICP > 0 && Math.random() < 0.7) { p.hasICP = true; s.availableICP--; } p.status = "active"; }
+  s.availableBeds = s.totalBeds - initCount; addEvent(s, `System ready | ${initCount}/${beds} beds occupied`); return s;
+}
+function addEvent(s, msg) { if (!s) return; s.events.unshift({ t: (s.time / 24).toFixed(1), msg }); if (s.events.length > 40) s.events.pop(); }
+function priority(p) { let score = p.apache * 1.2 + (15 - p.gcs) * 1.5 + (p.health < 35 ? 30 : 0); if (p.ventilatorRequired) score += 20; if (p.icpRequired) score += 15; if (p.bedWaitHours > 12) score += 15; return state.triagePolicy === "survival" ? p.health : score; }
+function assignBeds() { let waiting = state.patients.filter(p => p.status === "waiting_bed").sort((a,b)=>priority(b)-priority(a)); for (let p of waiting) { if (state.availableBeds <= 0) { p.bedWaitHours++; p.health = Math.max(0, p.health - 0.08); continue; } let idx = state.bedOccupancy.findIndex(b => b === null); if (idx !== -1) { state.bedOccupancy[idx] = p.id; p.bedId = idx; p.status = "waiting_resources"; state.availableBeds--; if (p.ventilatorRequired && state.availableVents > 0) { p.hasVentilator = true; state.availableVents--; } if (p.icpRequired && state.availableICP > 0) { p.hasICP = true; state.availableICP--; } p.addJourney(state.time/24, "BED ASSIGNED", `Bed ${idx+1}`); addEvent(state, `Bed assigned to ${p.id}`); } } }
+function assignStaff() { let waiting = state.patients.filter(p => p.status === "waiting_resources").sort((a,b)=>priority(b)-priority(a)); for (let p of waiting) { if (!p.doctorId && state.availableDoctors > 0) { p.doctorId = `DOC-${state.totalDoctors - state.availableDoctors + 1}`; state.availableDoctors--; } if (!p.nurseId && state.availableNurses > 0) { p.nurseId = `NUR-${state.totalNurses - state.availableNurses + 1}`; state.availableNurses--; } if (p.doctorId && p.nurseId) { p.status = "active"; p.addJourney(state.time/24, "TREATMENT STARTED", ""); } else p.resourceWaitHours++; } }
+function releasePatient(p) { if (p.bedId !== null) { state.bedOccupancy[p.bedId] = null; state.availableBeds++; p.bedId = null; } if (p.doctorId) { state.availableDoctors++; p.doctorId = null; } if (p.nurseId) { state.availableNurses++; p.nurseId = null; } if (p.hasVentilator) { state.availableVents++; p.hasVentilator = false; } if (p.hasICP) { state.availableICP++; p.hasICP = false; } }
+function updateHealth() { let day = Math.floor(state.time / 24), hours = state.time; for (let p of state.patients) { p.addCosts(day, hours); if (p.status !== "active" && p.status !== "critical") continue; let change = p.recoveryPerHour; if (p.doctorId) change += DOCTOR_RECOVERY_BONUS; if (p.nurseId) change += NURSE_RECOVERY_BONUS; if (!p.doctorId && p.health < 40) change -= 0.03; if (!p.nurseId && p.health < 40) change -= 0.02; if (p.vap) change -= 0.06; if (p.hasICP) change += 0.02; p.health = Math.min(100, Math.max(0, p.health + change)); if (p.ventilatorRequired && !p.vap) { p.vapTimer--; if (p.vapTimer <= 0 && Math.random() < VAP_PROBABILITY) { p.vap = true; state.vapCases++; p.health = Math.max(20, p.health - 10); p.addJourney(state.time/24, "VAP DIAGNOSED", `Health drop to ${p.health.toFixed(0)}%`); addEvent(state, `VAP in ${p.id}`); } if (p.vapTimer <= 0) p.vapTimer = randomRange(48, 96); } if (Math.random() < p.calculateHourlyDeathProb()) { p.status = "dead"; p.dischargeTime = state.time; state.totalCost += p.totalCost; state.totalDeaths++; releasePatient(p); completedPatients.push(p); if (!state.diseaseStats[p.diagnosis]) state.diseaseStats[p.diagnosis] = { total:0, deaths:0, dis:0, losSum:0, costSum:0 }; state.diseaseStats[p.diagnosis].total++; state.diseaseStats[p.diagnosis].deaths++; addEvent(state, ` Death: ${p.id} | ${p.diagnosis}`); assignBeds(); assignStaff(); continue; } if (p.health < 30 && p.status === "active") { p.status = "critical"; p.addJourney(state.time/24, "CRITICAL", ""); } else if (p.health >= 50 && p.status === "critical") { p.status = "active"; p.addJourney(state.time/24, "STABLE", ""); } } }
+function checkDischarge() { for (let p of state.patients) { if (p.status !== "active") continue; let los = p.getLOS(), minReq = isSevereBrainInjury(p.diagnosis) ? MINIMUM_LOS_SEVERE : MINIMUM_LOS_DAYS; if (los < minReq) continue; if (p.health >= DISCHARGE_HEALTH_THRESH) { p.stable++; if (p.stable >= 48) { p.status = "discharged"; p.dischargeTime = state.time; state.totalLOS += los; state.totalDischarges++; state.totalCost += p.totalCost; releasePatient(p); completedPatients.push(p); if (!state.diseaseStats[p.diagnosis]) state.diseaseStats[p.diagnosis] = { total:0, deaths:0, dis:0, losSum:0, costSum:0 }; state.diseaseStats[p.diagnosis].total++; state.diseaseStats[p.diagnosis].dis++; state.diseaseStats[p.diagnosis].losSum += los; state.diseaseStats[p.diagnosis].costSum += p.totalCost; addEvent(state, ` Discharge: ${p.id} | LOS: ${los.toFixed(1)}d`); assignBeds(); assignStaff(); } } else p.stable = 0; } }
+function simulationStep() { if (!state) return; state.time += 1; if (Math.random() < state.arrivalRatePerHour && state.time / 24 >= state.nextArrival) { let pid = `P-${(state.totalAdmissions + 1).toString().padStart(4, '0')}`; let p = new Patient(pid, state.time, false); state.patients.push(p); state.totalAdmissions++; addEvent(state, `🚑 Arrival: ${p.id} | ${p.diagnosis}`); state.nextArrival = (state.time / 24) + randomRange(0.3, 0.8); } for (let p of state.patients.filter(p => p.status === "waiting_bed")) { p.health = Math.max(0, p.health - 0.08); if (p.health <= 2 && p.bedWaitHours > 72) { p.status = "dead"; state.noBedDeaths++; state.totalDeaths++; p.dischargeTime = state.time; completedPatients.push(p); addEvent(state, `💀 Death: ${p.id} — No bed after ${p.bedWaitHours}h`); } } assignBeds(); assignStaff(); updateHealth(); checkDischarge(); refreshUI(); }
+
+// ======================== FULL UI RENDERING ========================
+function drawFlowChart() {
+  const canvas = document.getElementById("flowCanvas");
+  const container = canvas.parentElement;
+  const w = container.clientWidth, h = 150;
+  canvas.width = w; canvas.height = h;
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "#060a12"; ctx.fillRect(0, 0, w, h);
+  const nodes = [
+    { id: "ARR", label: "ARRIVAL", x: 0.05, y: 0.45, color: "#2c6e9e" },
+    { id: "WBD", label: "WAIT BED", x: 0.20, y: 0.45, color: "#d9a13b" },
+    { id: "BED", label: "BED", x: 0.35, y: 0.45, color: "#9b6b9b" },
+    { id: "WST", label: "WAIT STAFF", x: 0.50, y: 0.45, color: "#e67e22" },
+    { id: "TRE", label: "TREATMENT", x: 0.65, y: 0.45, color: "#3a8a5a" },
+    { id: "VAP", label: "VAP", x: 0.65, y: 0.72, color: "#a87ba8" },
+    { id: "DTH", label: "DEATH", x: 0.85, y: 0.28, color: "#d97a7a" },
+    { id: "DIS", label: "DISCHARGE", x: 0.85, y: 0.65, color: "#2c8f5a" }
+  ];
+  const drawArrow = (fx, fy, tx, ty, col = "#5a7e9e") => {
+    ctx.beginPath(); ctx.moveTo(fx * w, fy * h); ctx.lineTo(tx * w, ty * h); ctx.strokeStyle = col; ctx.lineWidth = 1.6; ctx.stroke();
+    let ang = Math.atan2(ty - fy, tx - fx), hl = 6;
+    let x2 = tx * w, y2 = ty * h;
+    ctx.beginPath(); ctx.moveTo(x2, y2); ctx.lineTo(x2 - hl * Math.cos(ang - Math.PI/6), y2 - hl * Math.sin(ang - Math.PI/6)); ctx.lineTo(x2 - hl * Math.cos(ang + Math.PI/6), y2 - hl * Math.sin(ang + Math.PI/6)); ctx.fillStyle = col; ctx.fill();
+  };
+  drawArrow(0.05, 0.45, 0.18, 0.45);      // ARRIVAL -> WAIT BED
+  drawArrow(0.22, 0.45, 0.33, 0.45);      // WAIT BED -> BED
+  drawArrow(0.37, 0.45, 0.48, 0.45);      // BED -> WAIT STAFF
+  drawArrow(0.52, 0.45, 0.63, 0.45);      // WAIT STAFF -> TREATMENT
+  drawArrow(0.65, 0.47, 0.65, 0.70);      // TREATMENT -> VAP
+  drawArrow(0.67, 0.45, 0.83, 0.28);      // TREATMENT -> DEATH
+  drawArrow(0.67, 0.45, 0.83, 0.63);      // TREATMENT -> DISCHARGE
+  drawArrow(0.67, 0.74, 0.83, 0.70, "#a87ba8"); // VAP -> DEATH (FIXED)
+  drawArrow(0.63, 0.72, 0.63, 0.47, "#7a5a7a"); // VAP -> TREATMENT
+  ctx.font = "bold 8px 'Segoe UI'"; ctx.textAlign = "center";
+  for (let n of nodes) { ctx.beginPath(); ctx.arc(n.x * w, n.y * h, 12, 0, 2*Math.PI); ctx.fillStyle = n.color; ctx.fill(); ctx.fillStyle = "white"; ctx.fillText(n.label, n.x * w, n.y * h + 3.5); }
+}
+
+function refreshUI() {
+  if (!state) return;
+  // Time
+  document.getElementById("simTime").innerHTML = `Day ${(state.time / 24).toFixed(1)}`;
+  let usedBeds = state.totalBeds - state.availableBeds;
+  document.getElementById("occRate").innerHTML = `| Occ: ${((usedBeds/state.totalBeds)*100).toFixed(0)}%`;
+  
+  // Stats Panel
+  let mortRate = state.totalAdmissions ? ((state.totalDeaths/state.totalAdmissions)*100).toFixed(1) : "0";
+  document.getElementById("statsPanel").innerHTML = `
+    <div class="metric-row"><span>Total Admissions</span><span>${state.totalAdmissions}</span></div>
+    <div class="metric-row"><span>Discharged</span><span>${state.totalDischarges}</span></div>
+    <div class="metric-row"><span>Deaths</span><span style="color:#d97a7a;">${state.totalDeaths}</span></div>
+    <div class="metric-row"><span>No-Bed Deaths</span><span style="color:#d97a7a;">${state.noBedDeaths}</span></div>
+    <div class="metric-row"><span>VAP Cases</span><span>${state.vapCases}</span></div>
+    <div class="metric-row"><span><strong>Mortality Rate</strong></span><span style="color:#d97a7a;font-weight:700;">${mortRate}%</span></div>`;
+  
+  // Resource Panel
+  let docBusy = state.totalDoctors - state.availableDoctors;
+  let nurseBusy = state.totalNurses - state.availableNurses;
+  let ventsUsed = state.totalVents - state.availableVents;
+  let icpUsed = state.totalICP - state.availableICP;
+  document.getElementById("resourcePanel").innerHTML = `
+    <div class="flex-row"><span>Intensivists</span><span>${docBusy}/${state.totalDoctors}</span><span>${((docBusy/state.totalDoctors)*100).toFixed(0)}%</span></div>
+    <div class="progress-bar"><div class="progress-fill" style="width:${(docBusy/state.totalDoctors)*100}%"></div></div>
+    <div class="flex-row"><span>ICU Nurses</span><span>${nurseBusy}/${state.totalNurses}</span><span>${((nurseBusy/state.totalNurses)*100).toFixed(0)}%</span></div>
+    <div class="progress-bar"><div class="progress-fill" style="width:${(nurseBusy/state.totalNurses)*100}%"></div></div>
+    <div class="flex-row"><span>ICU Beds</span><span>${usedBeds}/${state.totalBeds}</span><span>${((usedBeds/state.totalBeds)*100).toFixed(0)}%</span></div>
+    <div class="progress-bar"><div class="progress-fill" style="width:${(usedBeds/state.totalBeds)*100}%"></div></div>
+    <div class="flex-row"><span>Ventilators</span><span>${ventsUsed}/${state.totalVents}</span><span>${((ventsUsed/state.totalVents)*100).toFixed(0)}%</span></div>
+    <div class="progress-bar"><div class="progress-fill" style="width:${(ventsUsed/state.totalVents)*100}%"></div></div>
+    <div class="flex-row"><span>ICP Monitors</span><span>${icpUsed}/${state.totalICP}</span><span>${((icpUsed/state.totalICP)*100).toFixed(0)}%</span></div>
+    <div class="progress-bar"><div class="progress-fill" style="width:${(icpUsed/state.totalICP)*100}%"></div></div>`;
+  
+  // Cost Panel
+  let tb=0,tv=0,ti=0,tm=0,tl=0,tvap=0;
+  for(let p of state.patients) { tb+=p.costBed; tv+=p.costVent; ti+=p.costICP; tm+=p.costMeds; tl+=p.costLabs; tvap+=p.costVAP; }
+  document.getElementById("costPanel").innerHTML = `
+    <div class="metric-row"><span>Bed Cost</span><span>₹${Math.round(tb).toLocaleString()}</span></div>
+    <div class="metric-row"><span>Ventilator Cost</span><span>₹${Math.round(tv).toLocaleString()}</span></div>
+    <div class="metric-row"><span>ICP Monitor Cost</span><span>₹${Math.round(ti).toLocaleString()}</span></div>
+    <div class="metric-row"><span>Medications</span><span>₹${Math.round(tm).toLocaleString()}</span></div>
+    <div class="metric-row"><span>Lab Tests</span><span>₹${Math.round(tl).toLocaleString()}</span></div>
+    <div class="metric-row"><span>VAP Treatment</span><span>₹${Math.round(tvap).toLocaleString()}</span></div>
+    <div class="metric-row"><span><strong>Total Cost</strong></span><span style="color:#6c9ed9;">₹${Math.round(state.totalCost).toLocaleString()}</span></div>`;
+  
+  // Optimization Panel
+  let surv = state.totalAdmissions ? ((state.totalDischarges/state.totalAdmissions)*100).toFixed(1) : "0";
+  let avgCost = state.totalAdmissions ? (state.totalCost / state.totalAdmissions) : 0;
+  let avgLos = state.totalDischarges ? (state.totalLOS / state.totalDischarges).toFixed(1) : "0";
+  document.getElementById("optimizationPanel").innerHTML = `
+    <div class="metric-row"><span>Survival Rate</span><span>${surv}%</span></div>
+    <div class="metric-row"><span>Mean Cost/Patient</span><span>₹${Math.round(avgCost).toLocaleString()}</span></div>
+    <div class="metric-row"><span>Mean LOS</span><span>${avgLos} days</span></div>`;
+  
+  // Triage Queue
+  let waiting = state.patients.filter(p => p.status === "waiting_bed").sort((a,b)=>priority(b)-priority(a));
+  let th = `<table class="data-table"><thead><tr><th>ID</th><th>Diagnosis</th><th>GCS</th><th>Health</th><th>Wait</th><th>Pri</th></tr></thead><tbody>`;
+  for(let p of waiting.slice(0,10)) { let pc = p.apache>28?"priority-p1":(p.apache>20?"priority-p2":"priority-p3"); let pt = p.apache>28?"P1":(p.apache>20?"P2":"P3"); th += `<tr><td><span class="priority-badge ${pc}">${pt}</span> ${p.id}</td><td>${p.diagnosis.substring(0,12)}</td><td>${p.gcs}</td><td class="${p.health<30?'health-critical':''}">${Math.round(p.health)}%</td><td>${p.bedWaitHours.toFixed(0)}h</td><td>${p.apache}</td></tr>`; }
+  if(waiting.length===0) th += `<tr><td colspan="6" style="text-align:center;color:#8a9bb0;">No patients waiting</td></tr>`;
+  document.getElementById("triageQueue").innerHTML = th + `</tbody></table>`;
+  
+  // Resource Wait
+  let resWait = state.patients.filter(p => p.status === "waiting_resources");
+  let rh = `<table class="data-table"><thead><tr><th>ID</th><th>Dr</th><th>Nr</th><th>Vent</th><th>ICP</th><th>Health</th></tr></thead><tbody>`;
+  for(let p of resWait.slice(0,8)) rh += `<tr><td>${p.id}</td><td>${p.doctorId?"✓":"⌛"}</td><td>${p.nurseId?"✓":"⌛"}</td><td>${p.hasVentilator?"✓":(p.ventilatorRequired?"⌛":"-")}</td><td>${p.hasICP?"✓":(p.icpRequired?"⌛":"-")}</td><td>${Math.round(p.health)}%</td></tr>`;
+  if(resWait.length===0) rh += `<tr><td colspan="6" style="text-align:center;color:#8a9bb0;">None waiting</td></tr>`;
+  document.getElementById("resourceWait").innerHTML = rh + `</tbody></table>`;
+  
+  // Active Patients
+  let active = state.patients.filter(p => p.status === "active" || p.status === "critical");
+  let ah = `<table class="data-table"><thead><tr><th>ID</th><th>Bed</th><th>LOS</th><th>Health</th><th>VAP</th><th>Dr</th><th>Nr</th></tr></thead><tbody>`;
+  for(let p of active.slice(0,12)) { let los = ((state.time - p.admitTime)/24).toFixed(1); ah += `<tr><td>${p.id}</td><td>${p.bedId+1}</td><td>${los}d</td><td class="${p.health<30?'health-critical':''}">${Math.round(p.health)}%</td><td>${p.vap?"Y":"N"}</td><td>${p.doctorId?"✓":"✗"}</td><td>${p.nurseId?"✓":"✗"}</td></tr>`; }
+  document.getElementById("activePatients").innerHTML = ah + `</tbody></table>`;
+  
+  // Bed Grid
+  let bg = "";
+  for(let i = 0; i < state.totalBeds; i++) {
+    let pid = state.bedOccupancy[i];
+    let p = pid ? state.patients.find(pt => pt.id === pid) : null;
+    let cls = "bed" + (!p ? " empty" : p.status === "critical" ? " critical" : p.vap ? " vap" : " occupied");
+    bg += `<div class="${cls}" onclick="showJourney('${pid || ''}')"><div>${i+1}</div>${p?`<div>${p.id.slice(-3)}</div><div>${Math.round(p.health)}%</div>`:'<div>FREE</div>'}</div>`;
+  }
+  document.getElementById("bedGrid").innerHTML = bg;
+  
+  // Patient List
+  let allPts = [...completedPatients, ...state.patients.filter(p => p.status !== "dead" && p.status !== "discharged")];
+  let pl = `<div class="patient-row patient-header"><span>ID</span><span>Diagnosis</span><span>LOS(d)</span><span>Cost(k)</span><span>VAP</span><span>Wait</span><span>Status</span></div>`;
+  for(let p of allPts.slice(0,30)) { let ot = p.status==="discharged"?"✓":(p.status==="dead"?"✗":(p.status==="critical"?"⚡":"●")); let oc = p.status==="dead"?"status-dead":(p.status==="discharged"?"status-discharged":""); pl += `<div class="patient-row clickable" onclick="showJourney('${p.id}')"><span>${p.id}</span><span>${p.diagnosis.substring(0,10)}</span><span>${p.getLOS().toFixed(1)}</span><span>₹${Math.round(p.totalCost/1000)}k</span><span>${p.vap?"Y":"N"}</span><span>${p.bedWaitHours.toFixed(0)}</span><span class="${oc}">${ot}</span></div>`; }
+  document.getElementById("patientList").innerHTML = pl;
+  
+  // Disease Outcomes
+  let dh = `<table class="data-table"><thead><tr><th>Disease</th><th>N</th><th>Died</th><th>Mort%</th><th>LOS(d)</th></tr></thead><tbody>`;
+  for(let [name, s2] of Object.entries(state.diseaseStats)) { let m = s2.total > 0 ? ((s2.deaths/s2.total)*100).toFixed(0) : 0; let l = s2.dis > 0 ? (s2.losSum/s2.dis).toFixed(1) : "-"; dh += `<tr><td>${name.substring(0,14)}</td><td>${s2.total}</td><td>${s2.deaths}</td><td style="color:${m>20?'#d97a7a':'#6fcf97'}">${m}%</td><td>${l}d</td></tr>`; }
+  document.getElementById("diseaseOutcomes").innerHTML = dh + `</tbody></table>`;
+  
+  // Recommendations
+  let occ = (usedBeds/state.totalBeds)*100;
+  let mortVal = parseFloat(mortRate);
+  let recs = [];
+  if(occ > 85) recs.push({text:` Bed occupancy ${occ.toFixed(0)}% — consider adding capacity`, critical:true});
+  if(mortVal > 22) recs.push({text:` Mortality ${mortVal.toFixed(1)}% >22% — review protocols`, critical:true});
+  else if(mortVal < 8 && state.totalAdmissions > 20) recs.push({text:` Low mortality ${mortVal.toFixed(1)}% — excellent care`, critical:false});
+  else recs.push({text:`Mortality ${mortVal.toFixed(1)}% — within expected ICU range (8-22%)`, critical:false});
+  if(state.vapCases/state.totalAdmissions > 0.18) recs.push({text:` VAP rate >18% — implement bundle`, critical:true});
+  document.getElementById("recommendations").innerHTML = recs.map(r => `<div class="recommendation ${r.critical?'critical':''}">${r.text}</div>`).join("");
+  
+  // Event Log
+  document.getElementById("eventLog").innerHTML = state.events.slice(0,12).map(e => `<div class="event">[Day ${e.t}] ${e.msg}</div>`).join("");
+  
+  drawFlowChart();
+}
+
+function showJourney(id) { if(!id) return; let all = [...completedPatients, ...(state?.patients||[])]; let p = all.find(p=>p.id===id); if(!p) return; document.getElementById("modalTitle").innerHTML = `${p.id} | ${p.diagnosis} | Health: ${p.health.toFixed(0)}%`; let html = `<div style="background:#0d121c;padding:8px;margin-bottom:8px;font-size:9px;">APACHE:${p.apache} | GCS:${p.gcs}<br>Ventilator:${p.ventilatorRequired?"Yes":"No"} | VAP:${p.vap?"Yes":"No"}<br>LOS:${p.getLOS().toFixed(1)}d | Total Cost: ₹${Math.round(p.totalCost).toLocaleString()}</div>`; for(let j of p.journey) html += `<div class="timeline-item"><strong>Day ${j.time}</strong> — ${j.event}<br><span>${j.detail}</span></div>`; document.getElementById("modalContent").innerHTML = html; document.getElementById("journeyModal").style.display = "flex"; }
+function closeModal() { document.getElementById("journeyModal").style.display = "none"; }
+function exportCSV() { let all = [...completedPatients, ...(state?.patients||[])]; let csv = "id,diagnosis,los_days,total_cost,outcome\n"; for(let p of all) csv += `${p.id},${p.diagnosis},${p.getLOS().toFixed(1)},${Math.round(p.totalCost)},${p.status}\n`; let a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv],{type:"text/csv"})); a.download = `neuro_icu_${Date.now()}.csv`; a.click(); addEvent(state,"Export completed"); }
+
+let running = false;
+function startSim() { if(running) return; if(!state) resetSim(); running = true; if(simInterval) clearInterval(simInterval); simInterval = setInterval(()=>{ if(running && state) simulationStep(); }, UPDATE_INTERVAL_MS); }
+function pauseSim() { running = false; if(simInterval) clearInterval(simInterval); simInterval = null; }
+function resetSim() { pauseSim(); completedPatients = []; state = initState(); state.nextArrival = 0.5; refreshUI(); }
+window.addEventListener("resize", () => drawFlowChart());
+document.getElementById("btnStart").onclick = startSim; document.getElementById("btnPause").onclick = pauseSim; document.getElementById("btnReset").onclick = resetSim; document.getElementById("btnExport").onclick = exportCSV;
+resetSim();
+</script>
+</body>
+</html>
